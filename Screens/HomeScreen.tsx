@@ -23,57 +23,96 @@ function HomeScreen({navigation}: any) {
   const [searchQuery, setSearchQuery] = useState('');
 
   //   const [intervalId, setIntervalId] = useState();
-  const intervalRef = useRef<NodeJS.Timeout>();
-  let intervalId: any;
-  useEffect(() => {
-    // Fetch initial data
-    getData();
+  // let intervalId: any;
+  // useEffect(() => {
+  //   // Fetch initial data
+  //   getData();
 
-    // Set up interval to fetch new data every 10 seconds
-    // if (lastpage == true) {
-    intervalRef.current = setInterval(getData, 5000);
-    // setIntervalId(
-    //   setInterval(() => {
-    //     getData();
-    //   }, 10000),
-    // );
-    // const intervalId = setInterval(() => {
-    //   getData();
-    // }, 10000);
+  //   // Set up interval to fetch new data every 10 seconds
+  //   // if (lastpage == true) {
+  //   intervalRef.current = setInterval(getData, 5000);
+  //   const intervalId = setInterval(() => {
+  //     // setPage(prevPage => prevPage + 1);
+  //     //   console.log(page, 'page');
+  //     //   getData();
+  //   }, 3000);
+  //   // setIntervalId(
+  //   //   setInterval(() => {
+  //   //     getData();
+  //   //   }, 10000),
+  //   // );
+  //   // const intervalId = setInterval(() => {
+  //   //   getData();
+  //   // }, 10000);
+  //   // }
+
+  //   // Clean up interval when the component is unmounted
+  //   // return () => clearInterval(intervalId);
+
+  // }, []);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      getData();
+      let p = pageNumber + 1;
+      // setPage(prevPage => prevPage + 1);
+      console.log(p, 'page ');
+      setPage(p);
+    }, 3000);
+
+    return () => clearInterval(intervalId); // Clear the interval on component unmount
+  }, []);
+  // useEffect(() => {
+  //   getData();
+  // });
+  // useEffect(() => {
+  //   // console.log(pageNumber, 'Page Number');
+  //   getData();
+  // }, [pageNumber]);
+
+  const getData = async () => {
+    // if (isFetching || lastpage) {
+    //   // If already fetching data, skip the new request
+    //   return;
     // }
 
-    // Clean up interval when the component is unmounted
-    // return () => clearInterval(intervalId);
-
-    return () => clearInterval(intervalRef.current);
-  }, []);
-
-  const getData = () => {
-    if (isFetching || lastpage) {
-      // If already fetching data, skip the new request
-      return;
+    // setIsFetching(true);
+    try {
+      setIsFetching(true);
+      const response = await fetch(
+        `https://hn.algolia.com/api/v1/search_by_date?tags=story&page=${pageNumber}`,
+      );
+      const data = await response.json();
+      const NewData = data.hits;
+      setArticles(prev => [...prev, ...NewData]);
+      console.log('Page Number 1', pageNumber);
+      // setPage(prevPage => prevPage + 1);
+      // console.log('Page Number 2', pageNumber);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setIsFetching(false);
     }
-    setIsFetching(true);
 
-    let URL = `https://hn.algolia.com/api/v1/search_by_date?tags=story&page=${pageNumber}`;
-    fetch(URL)
-      .then(response => response.json())
-      .then(data => {
-        console.log(data.hits.length, data.page, URL);
-        if (data.hits.length == 0) {
-          setLastPage(true);
-          clearInterval(intervalRef.current);
-          return;
-        }
-        setArticles(prevArticles => [...prevArticles, ...data.hits]);
-        setPage(pageNumber + 1);
-      })
-      .catch(error => {
-        console.log(error);
-      })
-      .finally(() => {
-        setIsFetching(false);
-      });
+    // let URL = `https://hn.algolia.com/api/v1/search_by_date?tags=story&page=${pageNumber}`;
+    // fetch(URL)
+    //   .then(response => response.json())
+    //   .then(data => {
+    //     console.log(data.hits.length, data.page, URL);
+    //     if (data.hits.length == 0) {
+    //       setLastPage(true);
+    //       clearInterval(intervalRef.current);
+    //       return;
+    //     }
+    //     setArticles(prevArticles => [...prevArticles, ...data.hits]);
+    //     setPage(prev => prev + 1);
+    //   })
+    //   .catch(error => {
+    //     console.log(error);
+    //   })
+    //   .finally(() => {
+    //     setIsFetching(false);
+    //   });
   };
 
   const renderFooter = () => {
@@ -107,7 +146,15 @@ function HomeScreen({navigation}: any) {
           </View>
         )}
         keyExtractor={(item, index) => index.toString()}
-        onEndReached={lastpage ? null : getData}
+        // onEndReached={lastpage ? null : getData}
+        onEndReached={
+          lastpage
+            ? null
+            : () => {
+                // setPage(prevPage => prevPage + 1);
+                // getData();
+              }
+        }
         // onEndReachedThreshold={0.1}
         ListFooterComponent={renderFooter}
       />
