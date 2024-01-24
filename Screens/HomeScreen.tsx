@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 
 interface Article {
@@ -51,68 +52,52 @@ function HomeScreen({navigation}: any) {
 
   // }, []);
 
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      getData();
-      let p = pageNumber + 1;
-      // setPage(prevPage => prevPage + 1);
-      console.log(p, 'page ');
-      setPage(p);
-    }, 3000);
+  // useEffect(() => {
+  //   const intervalId = setInterval(() => {
+  //     getData();
+  //     let p = pageNumber + 1;
+  //     // setPage(prevPage => prevPage + 1);
+  //     console.log(p, 'page ');
+  //     setPage(p);
+  //   }, 3000);
 
-    return () => clearInterval(intervalId); // Clear the interval on component unmount
-  }, []);
-  // useEffect(() => {
-  //   getData();
-  // });
-  // useEffect(() => {
-  //   // console.log(pageNumber, 'Page Number');
-  //   getData();
-  // }, [pageNumber]);
+  //   return () => clearInterval(intervalId); // Clear the interval on component unmount
+  // }, []);
+  let intervalId: any;
+  useEffect(() => {
+    const fetchData = () => {
+      setPage(pageNumber + 1);
+    };
+    getData();
+    // console.log(pageNumber);
+    intervalId = setInterval(fetchData, 3000);
+    return () => clearInterval(intervalId);
+  }, [pageNumber]);
 
   const getData = async () => {
-    // if (isFetching || lastpage) {
-    //   // If already fetching data, skip the new request
-    //   return;
-    // }
-
-    // setIsFetching(true);
-    try {
-      setIsFetching(true);
-      const response = await fetch(
-        `https://hn.algolia.com/api/v1/search_by_date?tags=story&page=${pageNumber}`,
-      );
-      const data = await response.json();
-      const NewData = data.hits;
-      setArticles(prev => [...prev, ...NewData]);
-      console.log('Page Number 1', pageNumber);
-      // setPage(prevPage => prevPage + 1);
-      // console.log('Page Number 2', pageNumber);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setIsFetching(false);
+    if (isFetching || lastpage) {
+      return;
     }
-
-    // let URL = `https://hn.algolia.com/api/v1/search_by_date?tags=story&page=${pageNumber}`;
-    // fetch(URL)
-    //   .then(response => response.json())
-    //   .then(data => {
-    //     console.log(data.hits.length, data.page, URL);
-    //     if (data.hits.length == 0) {
-    //       setLastPage(true);
-    //       clearInterval(intervalRef.current);
-    //       return;
-    //     }
-    //     setArticles(prevArticles => [...prevArticles, ...data.hits]);
-    //     setPage(prev => prev + 1);
-    //   })
-    //   .catch(error => {
-    //     console.log(error);
-    //   })
-    //   .finally(() => {
-    //     setIsFetching(false);
-    //   });
+    setIsFetching(true);
+    let URL = `https://hn.algolia.com/api/v1/search_by_date?tags=story&page=${pageNumber}`;
+    fetch(URL)
+      .then(response => response.json())
+      .then(data => {
+        console.log(data.hits.length, data.page, URL);
+        if (data.hits.length == 0) {
+          setLastPage(true);
+          clearInterval(intervalId);
+          return;
+        }
+        setArticles(prevArticles => [...prevArticles, ...data.hits]);
+        // setPage(pageNumber + 1);
+      })
+      .catch(error => {
+        console.log(error);
+      })
+      .finally(() => {
+        setIsFetching(false);
+      });
   };
 
   const renderFooter = () => {
@@ -121,13 +106,37 @@ function HomeScreen({navigation}: any) {
       return <ActivityIndicator size="large" color="gray" />;
     }
   };
+  const filterArticles = (articles: Article[], query: string): Article[] => {
+    const lowercaseQuery = query.toLowerCase();
+    return articles.filter(
+      article =>
+        article.title.toLowerCase().includes(lowercaseQuery) ||
+        article.author.toLowerCase().includes(lowercaseQuery),
+    );
+  };
+
+  const handleSearch = () => {
+    // Reset the current articles and page number when a new search is initiated
+    setArticles([]);
+    setPage(0);
+    setLastPage(false);
+    getData();
+  };
 
   return (
     <View style={styles.container}>
+      <TextInput
+        style={styles.searchBar}
+        placeholder="Search by title or author"
+        placeholderTextColor={'black'}
+        onChangeText={setSearchQuery}
+        value={searchQuery}
+        onSubmitEditing={handleSearch}
+      />
       <FlatList
         // initialNumToRender={5}
         // maxToRenderPerBatch={5}
-        data={articles}
+        data={filterArticles(articles, searchQuery)}
         renderItem={({item, index}) => (
           <View style={styles.itemView}>
             <TouchableOpacity
@@ -146,19 +155,19 @@ function HomeScreen({navigation}: any) {
           </View>
         )}
         keyExtractor={(item, index) => index.toString()}
-        // onEndReached={lastpage ? null : getData}
+        // onEndReached={lastpage ? null : getData()}
         onEndReached={
           lastpage
             ? null
             : () => {
-                // setPage(prevPage => prevPage + 1);
-                // getData();
+                setPage(prevPage => prevPage + 1);
+                getData();
+                clearInterval(intervalId);
               }
         }
-        // onEndReachedThreshold={0.1}
+        onEndReachedThreshold={0.3}
         ListFooterComponent={renderFooter}
       />
-      {/* {isFetching && <ActivityIndicator size="large" color="gray" />} */}
     </View>
   );
 }
@@ -180,5 +189,14 @@ const styles = StyleSheet.create({
   },
   itemViewText: {
     color: 'black',
+  },
+  searchBar: {
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    margin: 10,
+    paddingLeft: 10,
+    color: 'black',
+    borderRadius: 10,
   },
 });
