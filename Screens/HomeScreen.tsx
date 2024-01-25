@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
+  TouchableWithoutFeedback,
+  Linking,
 } from 'react-native';
 
 interface Article {
@@ -63,17 +65,19 @@ function HomeScreen({navigation}: any) {
 
   //   return () => clearInterval(intervalId); // Clear the interval on component unmount
   // }, []);
+  // useEffect(() => {
+  //   getData();
+  // }, []);
   let intervalId: any;
   useEffect(() => {
     const fetchData = () => {
       setPage(pageNumber + 1);
+      getData();
     };
-    getData();
     // console.log(pageNumber);
     intervalId = setInterval(fetchData, 3000);
     return () => clearInterval(intervalId);
   }, [pageNumber]);
-
   const getData = async () => {
     if (isFetching || lastpage) {
       return;
@@ -98,6 +102,7 @@ function HomeScreen({navigation}: any) {
       .finally(() => {
         setIsFetching(false);
       });
+    setIsFetching(false);
   };
 
   const renderFooter = () => {
@@ -126,6 +131,7 @@ function HomeScreen({navigation}: any) {
   return (
     <View style={styles.container}>
       <TextInput
+        testID="search-query"
         style={styles.searchBar}
         placeholder="Search by title or author"
         placeholderTextColor={'black'}
@@ -139,19 +145,34 @@ function HomeScreen({navigation}: any) {
         data={filterArticles(articles, searchQuery)}
         renderItem={({item, index}) => (
           <View style={styles.itemView}>
-            <TouchableOpacity
+            <TouchableWithoutFeedback
+              testID="ArticleDetailsButton"
               onPress={() => {
                 navigation.navigate('ArticleDetails', {
                   data: item,
                 });
               }}>
-              <Text style={styles.itemViewText}>Author : {item.author}</Text>
-              <Text style={styles.itemViewText}>Title : {item.title}</Text>
-              <Text style={styles.itemViewText}>URL : {item.url}</Text>
-              <Text style={styles.itemViewText}>
-                Created At : {item.created_at}
-              </Text>
-            </TouchableOpacity>
+              <View>
+                <Text style={styles.itemViewText}>Author: {item.author}</Text>
+                <Text style={styles.itemViewText}>Title: {item.title}</Text>
+
+                {/* URL is made clickable separately */}
+                <TouchableOpacity
+                  testID="URLButton"
+                  onPress={() => {
+                    // Open the URL in the browser
+                    Linking.openURL(item.url);
+                  }}>
+                  <Text style={styles.itemViewText}>
+                    URL: <Text style={{color: 'blue'}}>{item.url}</Text>
+                  </Text>
+                </TouchableOpacity>
+
+                <Text style={styles.itemViewText}>
+                  Created At: {item.created_at}
+                </Text>
+              </View>
+            </TouchableWithoutFeedback>
           </View>
         )}
         keyExtractor={(item, index) => index.toString()}
@@ -182,7 +203,7 @@ const styles = StyleSheet.create({
     width: '90%',
     color: 'black',
     alignSelf: 'center',
-    marginTop: 10,
+    marginBottom: 10,
     borderWidth: 1,
     borderRadius: 10,
     padding: 10,
@@ -191,11 +212,13 @@ const styles = StyleSheet.create({
     color: 'black',
   },
   searchBar: {
-    height: 40,
+    height: 45,
     borderColor: 'gray',
+    width: '90%',
     borderWidth: 1,
     margin: 10,
-    paddingLeft: 10,
+    padding: 10,
+    alignSelf: 'center',
     color: 'black',
     borderRadius: 10,
   },
