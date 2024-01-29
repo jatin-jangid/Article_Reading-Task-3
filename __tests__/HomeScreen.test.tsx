@@ -2,8 +2,7 @@ import React from 'react';
 import {render, fireEvent, act, waitFor} from '@testing-library/react-native';
 import HomeScreen from '../Screens/HomeScreen';
 import '@testing-library/jest-dom';
-import {Linking} from 'react-native';
-
+import {FlatList, Linking} from 'react-native';
 // Mocking the Linking module since it's not available in the test environment
 jest.mock('react-native/Libraries/Linking/Linking', () => ({
   openURL: jest.fn(),
@@ -11,28 +10,39 @@ jest.mock('react-native/Libraries/Linking/Linking', () => ({
 const mockNavigation = {
   navigate: jest.fn(),
 };
-const mockData = {
-  data: {
-    hits: [
-      {
-        title: 'Test Post 1',
-        author: 'Test Author 1',
-        story_id: '1',
-        url: 'google.com',
-        _tags: 'tag',
-        created_at: 'Date',
+const mockData = [
+  {
+    _highlightResult: {
+      author: {
+        matchLevel: 'none',
+        matchedWords: [],
+        value: 'danbolt',
       },
-      {
-        title: 'Test Post 2',
-        author: 'Test Author 2',
-        story_id: '2',
-        url: 'google.com',
-        _tags: 'tag',
-        created_at: 'Date',
+      title: {
+        matchLevel: 'none',
+        matchedWords: [],
+        value: 'Video-Game Companies Make Workers Relocate, Then Fire Them',
       },
-    ],
+      url: {
+        matchLevel: 'none',
+        matchedWords: [],
+        value:
+          'https://www.bloomberg.com/news/newsletters/2024-01-26/video-game-companies-make-workers-relocate-then-fire-them',
+      },
+    },
+    _tags: ['story', 'author_danbolt', 'story_39157602'],
+    author: 'danbolt',
+    created_at: '2024-01-27T17:28:55Z',
+    created_at_i: 1706376535,
+    num_comments: 0,
+    objectID: '39157602',
+    points: 1,
+    story_id: 39157602,
+    title: 'Video-Game Companies Make Workers Relocate, Then Fire Them',
+    updated_at: '2024-01-27T17:29:19Z',
+    url: 'https://www.bloomberg.com/news/newsletters/2024-01-26/video-game-companies-make-workers-relocate-then-fire-them',
   },
-};
+];
 
 // Mocking the fetch function
 //@ts-ignore
@@ -41,6 +51,7 @@ global.fetch = jest.fn(() =>
     json: () => Promise.resolve(mockData), // Adjust the mock data as needed
   }),
 );
+jest.useFakeTimers();
 
 describe('HomeScreen', () => {
   it('renders correctly', () => {
@@ -57,7 +68,7 @@ describe('HomeScreen', () => {
 
     // Trigger the useEffect to run
     act(() => {
-      jest.advanceTimersByTime(3000);
+      jest.advanceTimersByTime(300000);
     });
     const nextPageNumber = 48 + 1;
     // Assert that the page number has been updated
@@ -102,7 +113,7 @@ describe('HomeScreen', () => {
       const {getByTestId} = render(<HomeScreen navigation={mockNavigation} />);
 
       // Mock article data
-      const mockItem = {
+      const mockdataFlatlist = {
         author: 'John Doe',
         title: 'React Testing',
         url: 'https://example.com',
@@ -118,67 +129,60 @@ describe('HomeScreen', () => {
 
       // Check if Linking.openURL is called with the correct URL
       waitFor(() => {
-        expect(Linking.openURL).toHaveBeenCalledWith(mockItem.url);
+        expect(Linking.openURL).toHaveBeenCalledWith(mockData[0].url);
       });
     });
   });
+  test('should return nothing when data.hits.length becomes 0', () => {});
 
-  //Another SHIT
-  //   describe('ArticleList component', () => {
-  //     const mockNavigation = {
-  //       navigate: jest.fn(),
-  //     };
+  describe('Flatlist Testing', () => {
+    test('should render flatlist when data is present', () => {
+      const componentTree = render(<HomeScreen navigation={mockNavigation} />);
+      expect(componentTree.UNSAFE_getAllByType(FlatList).length).toBe(1);
+    });
+    // test('should Navigate to next screen when button is pressed', () => {});
+  });
+  test('automatically fetches data on mount', async () => {
+    const {getByTestId} = render(<HomeScreen />);
 
-  //     const mockArticle = {
-  //       author: 'John Doe',
-  //       title: 'Sample Title',
-  //       url: 'https://example.com',
-  //       created_at: '2022-01-25T12:00:00Z',
-  //     };
+    // Advance timers to simulate the interval
+    jest.advanceTimersByTime(3000);
 
-  //     const mockData = [mockArticle];
+    // Check if setLastPage is called
+    expect(setLastPage).toHaveBeenCalledWith(true);
 
-  //     it('renders the list of articles correctly', () => {
-  //       const {getByText, getByTestId} = render(
-  //         <HomeScreen navigation={mockNavigation} articles={mockData} />,
-  //       );
+    // Check if clearInterval is called
+    expect(clearInterval).toHaveBeenCalled();
 
-  //       // Verify that the rendered data is correct
-  //       expect(getByText(`Author: ${mockArticle.author}`)).toBeTruthy();
-  //       expect(getByText(`Title: ${mockArticle.title}`)).toBeTruthy();
-  //       expect(getByTestId('URLButton')).toBeTruthy();
-  //       expect(getByText(`Created At: ${mockArticle.created_at}`)).toBeTruthy();
-  //     });
+    // Check if setArticles is called
+    expect(setArticles).toHaveBeenCalledWith([]);
 
-  //     it('navigates to ArticleDetails when ArticleDetailsButton is pressed', () => {
-  //       const {getByTestId} = render(
-  //         <HomeScreen navigation={mockNavigation} articles={mockData} />,
-  //       );
+    // Reset the mocks
+    jest.clearAllMocks();
 
-  //       // Trigger the onPress event on ArticleDetailsButton
-  //       fireEvent.press(getByTestId('ArticleDetailsButton'));
+    // Simulate fetching data again with hits
+    global.fetch.mockImplementationOnce(() =>
+      Promise.resolve({
+        json: () =>
+          Promise.resolve({
+            hits: [
+              {
+                /* your mock data here */
+              },
+            ],
+          }),
+      }),
+    );
 
-  //       // Verify that the navigate function is called with the correct parameters
-  //       expect(mockNavigation.navigate).toHaveBeenCalledWith('ArticleDetails', {
-  //         data: mockArticle,
-  //       });
-  //     });
+    // Trigger the useEffect again by re-rendering the component
+    await act(async () => {
+      render(<HomeScreen />);
+    });
 
-  //     it('opens the URL in the browser when URLButton is pressed', async () => {
-  //       const {getByTestId} = render(
-  //         <HomeScreen navigation={mockNavigation} articles={mockData} />,
-  //       );
+    // Advance timers to simulate the interval
+    jest.advanceTimersByTime(3000);
 
-  //       // Trigger the onPress event on URLButton
-  //       fireEvent.press(getByTestId('URLButton'));
-
-  //       // Wait for the asynchronous code to complete
-  //       await act(async () => {
-  //         await waitFor(() => {
-  //           // Verify that Linking.openURL is called with the correct URL
-  //           expect(Linking.openURL).toHaveBeenCalledWith(mockArticle.url);
-  //         });
-  //       });
-  //     });
-  //   });
+    // Check if setArticles is called with the new data
+    expect(setArticles).toHaveBeenCalledWith(/* expected data here */);
+  });
 });

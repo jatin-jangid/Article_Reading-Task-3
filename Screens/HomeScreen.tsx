@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {Component} from 'react';
 import {
   View,
   Text,
@@ -18,100 +18,87 @@ interface Article {
   created_at: string;
 }
 
-function HomeScreen({navigation}: any) {
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [pageNumber, setPage] = useState(0);
-  const [isFetching, setIsFetching] = useState(false);
-  const [lastpage, setLastPage] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+interface HomeScreenState {
+  articles: Article[];
+  pageNumber: number;
+  isFetching: boolean;
+  lastpage: boolean;
+  searchQuery: string;
+}
 
-  //   const [intervalId, setIntervalId] = useState();
-  // let intervalId: any;
-  // useEffect(() => {
-  //   // Fetch initial data
-  //   getData();
+class HomeScreen extends Component<any, HomeScreenState> {
+  private intervalId: any;
 
-  //   // Set up interval to fetch new data every 10 seconds
-  //   // if (lastpage == true) {
-  //   intervalRef.current = setInterval(getData, 5000);
-  //   const intervalId = setInterval(() => {
-  //     // setPage(prevPage => prevPage + 1);
-  //     //   console.log(page, 'page');
-  //     //   getData();
-  //   }, 3000);
-  //   // setIntervalId(
-  //   //   setInterval(() => {
-  //   //     getData();
-  //   //   }, 10000),
-  //   // );
-  //   // const intervalId = setInterval(() => {
-  //   //   getData();
-  //   // }, 10000);
-  //   // }
+  constructor(props: any) {
+    super(props);
 
-  //   // Clean up interval when the component is unmounted
-  //   // return () => clearInterval(intervalId);
-
-  // }, []);
-
-  // useEffect(() => {
-  //   const intervalId = setInterval(() => {
-  //     getData();
-  //     let p = pageNumber + 1;
-  //     // setPage(prevPage => prevPage + 1);
-  //     console.log(p, 'page ');
-  //     setPage(p);
-  //   }, 3000);
-
-  //   return () => clearInterval(intervalId); // Clear the interval on component unmount
-  // }, []);
-  // useEffect(() => {
-  //   getData();
-  // }, []);
-  let intervalId: any;
-  useEffect(() => {
-    const fetchData = () => {
-      setPage(pageNumber + 1);
-      getData();
+    this.state = {
+      articles: [],
+      pageNumber: 0,
+      isFetching: false,
+      lastpage: false,
+      searchQuery: '',
     };
-    // console.log(pageNumber);
-    intervalId = setInterval(fetchData, 3000);
-    return () => clearInterval(intervalId);
-  }, [pageNumber]);
-  const getData = async () => {
+  }
+
+  componentDidMount() {
+    // this.getData();
+    this.intervalId = setInterval(this.fetchData, 3000);
+  }
+
+  componentWillUnmount() {
+    clearInterval(this.intervalId);
+  }
+
+  fetchData = () => {
+    this.getData();
+    this.setState(
+      prevState => ({pageNumber: prevState.pageNumber + 1}),
+      // this.getData,
+    );
+  };
+
+  getData = async () => {
+    const {isFetching, lastpage, pageNumber} = this.state;
+
     if (isFetching || lastpage) {
       return;
     }
-    setIsFetching(true);
-    let URL = `https://hn.algolia.com/api/v1/search_by_date?tags=story&page=${pageNumber}`;
+
+    this.setState({isFetching: true});
+
+    const URL = `https://hn.algolia.com/api/v1/search_by_date?tags=story&page=${pageNumber}`;
+
     fetch(URL)
       .then(response => response.json())
       .then(data => {
         console.log(data.hits.length, data.page, URL);
-        if (data.hits.length == 0) {
-          setLastPage(true);
-          clearInterval(intervalId);
+
+        if (data.hits.length === 0) {
+          this.setState({lastpage: true});
+          clearInterval(this.intervalId);
           return;
         }
-        setArticles(prevArticles => [...prevArticles, ...data.hits]);
-        // setPage(pageNumber + 1);
+
+        this.setState(prevState => ({
+          articles: [...prevState.articles, ...data.hits],
+        }));
       })
       .catch(error => {
         console.log(error);
       })
       .finally(() => {
-        setIsFetching(false);
+        this.setState({isFetching: false});
       });
-    setIsFetching(false);
   };
 
-  const renderFooter = () => {
-    // If fetching data, render a loading indicator
-    if (!lastpage) {
+  renderFooter = () => {
+    if (!this.state.lastpage) {
       return <ActivityIndicator size="large" color="gray" />;
     }
   };
-  const filterArticles = (articles: Article[], query: string): Article[] => {
+
+  filterArticles = (articles: Article[], query: string): Article[] => {
     const lowercaseQuery = query.toLowerCase();
     return articles.filter(
       article =>
@@ -120,77 +107,73 @@ function HomeScreen({navigation}: any) {
     );
   };
 
-  const handleSearch = () => {
-    // Reset the current articles and page number when a new search is initiated
-    setArticles([]);
-    setPage(0);
-    setLastPage(false);
-    getData();
+  handleSearch = () => {
+    this.setState(
+      {
+        articles: [],
+        pageNumber: 0,
+        lastpage: false,
+      },
+      this.getData,
+    );
   };
 
-  return (
-    <View style={styles.container}>
-      <TextInput
-        testID="search-query"
-        style={styles.searchBar}
-        placeholder="Search by title or author"
-        placeholderTextColor={'black'}
-        onChangeText={setSearchQuery}
-        value={searchQuery}
-        onSubmitEditing={handleSearch}
-      />
-      <FlatList
-        // initialNumToRender={5}
-        // maxToRenderPerBatch={5}
-        data={filterArticles(articles, searchQuery)}
-        renderItem={({item, index}) => (
-          <View style={styles.itemView}>
-            <TouchableWithoutFeedback
-              testID="ArticleDetailsButton"
-              onPress={() => {
-                navigation.navigate('ArticleDetails', {
-                  data: item,
-                });
-              }}>
-              <View>
-                <Text style={styles.itemViewText}>Author: {item.author}</Text>
-                <Text style={styles.itemViewText}>Title: {item.title}</Text>
+  render() {
+    const {navigation} = this.props;
+    const {articles, searchQuery} = this.state;
 
-                {/* URL is made clickable separately */}
-                <TouchableOpacity
-                  testID="URLButton"
-                  onPress={() => {
-                    // Open the URL in the browser
-                    Linking.openURL(item.url);
-                  }}>
+    return (
+      <View style={styles.container}>
+        <TextInput
+          testID="search-query"
+          style={styles.searchBar}
+          placeholder="Search by title or author"
+          placeholderTextColor={'black'}
+          onChangeText={text => this.setState({searchQuery: text})}
+          value={searchQuery}
+          onSubmitEditing={this.handleSearch}
+        />
+        <FlatList
+          testID="flatlist"
+          data={this.filterArticles(articles, searchQuery)}
+          renderItem={({item}) => (
+            <View style={styles.itemView}>
+              <TouchableWithoutFeedback
+                testID="ArticleDetailsButton"
+                onPress={() => {
+                  navigation.navigate('ArticleDetails', {
+                    data: item,
+                  });
+                }}>
+                <View>
+                  <Text style={styles.itemViewText}>Author: {item.author}</Text>
+                  <Text style={styles.itemViewText}>Title: {item.title}</Text>
+
+                  <TouchableOpacity
+                    testID="URLButton"
+                    onPress={() => {
+                      Linking.openURL(item.url);
+                    }}>
+                    <Text style={styles.itemViewText}>
+                      URL: <Text style={{color: 'blue'}}>{item.url}</Text>
+                    </Text>
+                  </TouchableOpacity>
+
                   <Text style={styles.itemViewText}>
-                    URL: <Text style={{color: 'blue'}}>{item.url}</Text>
+                    Created At: {item.created_at}
                   </Text>
-                </TouchableOpacity>
-
-                <Text style={styles.itemViewText}>
-                  Created At: {item.created_at}
-                </Text>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        )}
-        keyExtractor={(item, index) => index.toString()}
-        // onEndReached={lastpage ? null : getData()}
-        onEndReached={
-          lastpage
-            ? null
-            : () => {
-                setPage(prevPage => prevPage + 1);
-                getData();
-                clearInterval(intervalId);
-              }
-        }
-        onEndReachedThreshold={0.3}
-        ListFooterComponent={renderFooter}
-      />
-    </View>
-  );
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          )}
+          keyExtractor={(_, index) => index.toString()}
+          onEndReached={this.state.lastpage ? null : this.fetchData}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={this.renderFooter}
+        />
+      </View>
+    );
+  }
 }
 
 export default HomeScreen;
